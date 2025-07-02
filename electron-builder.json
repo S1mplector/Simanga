@@ -1,0 +1,21 @@
+{
+  "appId": "com.example.simanga",
+  "productName": "SiManga",
+  "files": [
+    "dist/**/*",
+    "node_modules/**/*",
+    "package.json"
+  ],
+  "directories": {
+    "buildResources": "build"
+  },
+  "mac": {
+    "target": "dmg"
+  },
+  "linux": {
+    "target": "AppImage"
+  },
+  "win": {
+    "target": "nsis"
+  }
+} 

@@ -1,0 +1,29 @@
+{
+  "name": "simanga",
+  "version": "0.1.0",
+  "description": "Electron-based manga reader similar to HakuNeko",
+  "main": "dist/main.js",
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build && tsc -p tsconfig.main.json",
+    "start": "electron .",
+    "electron:dev": "concurrently \"vite\" \"ts-node --project tsconfig.main.json src/main.ts --watch\"",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "electron-store": "^9.1.0",
+    "p-queue": "^7.4.0",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.7",
+    "concurrently": "^8.2.2",
+    "electron": "^29.3.0",
+    "electron-builder": "^24.9.1",
+    "typescript": "^5.4.2",
+    "vite": "^5.2.0"
+  }
+} 
