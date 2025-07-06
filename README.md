@@ -35,7 +35,7 @@ SiManga allows you to browse, read, and download manga from various online sourc
 
 ### For Users
 
-You can download the latest release for your operating system from the [Releases](https://github.com/your-username/simanga/releases) page. (Note: You'll need to replace this link with your actual repository URL).
+You can download the latest release for your operating system from https://github.com/your-S1mplector/simanga/releases.
 
 ### For Developers
 
