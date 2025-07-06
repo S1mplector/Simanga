@@ -8,7 +8,7 @@ An adapter is a self-contained module that implements the `Adapter` interface fr
 
 Adapters are consumed by the `AdapterManager` service, which handles the lifecycle, caching, and error handling for all registered adapters.
 
-## The `Adapter` Interface: A Deep Dive
+## The `Adapter` Interface
 
 Every adapter must implement the `Adapter` interface. While the `BaseAdapter` abstract class is provided and recommended, understanding the full interface is crucial.
 
