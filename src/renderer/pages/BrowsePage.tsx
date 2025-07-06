@@ -11,7 +11,7 @@ const ContinueBanner: React.FC = () => {
   return (
     <div
       className="bg-blue-800/70 hover:bg-blue-800 cursor-pointer text-white px-4 py-2 rounded mb-4"
-      onClick={() => navigate(`/reader/${progress.chapterId}?page=${progress.page + 1}`)}
+      onClick={() => navigate(`/reader/${encodeURIComponent(progress.chapterId)}?page=${progress.page + 1}`)}
     >
       Continue reading: {progress.title ?? progress.mangaId} – page {progress.page + 1}
     </div>

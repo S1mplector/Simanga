@@ -10,18 +10,27 @@ interface Props {
 }
 
 const MangaPreview: React.FC<Props> = ({ sourceId, mangaId, title, pos, onClose }) => {
+  const cacheKey = `${sourceId}-${mangaId}`;
   const [thumb, setThumb] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancel = false;
     (async () => {
+      // try cache first
+      const cached = await window.thumbCache.get(cacheKey);
+      if (cached) {
+        setThumb(cached);
+        setLoading(false);
+        return;
+      }
       try {
         const chaps: any[] = await window.repo.fetchChapterList(sourceId, mangaId);
         if (cancel || chaps.length === 0) return;
         const pages: any[] = await window.repo.fetchPages(sourceId, chaps[0].id);
         if (cancel || pages.length === 0) return;
         setThumb(pages[0].url);
+        window.thumbCache.set(cacheKey, pages[0].url);
         setLoading(false);
       } catch {
         /* ignore */

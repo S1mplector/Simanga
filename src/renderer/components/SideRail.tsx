@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { HomeIcon, ArrowDownTrayIcon, Cog6ToothIcon, BookmarkIcon } from "@heroicons/react/24/outline";
+import { HomeIcon, ArrowDownTrayIcon, Cog6ToothIcon, BookmarkIcon, Bars3Icon } from "@heroicons/react/24/outline";
 
 const iconClasses = "w-6 h-6 text-gray-400 group-hover:text-white";
 
@@ -15,6 +15,9 @@ const SideRail: React.FC = () => {
       </NavLink>
       <NavLink to="/library" className="group">
         <BookmarkIcon className={iconClasses} />
+      </NavLink>
+      <NavLink to="/tracking" className="group">
+        <Bars3Icon className={iconClasses} />
       </NavLink>
       <NavLink to="/settings" className="group mt-auto">
         <Cog6ToothIcon className={iconClasses} />

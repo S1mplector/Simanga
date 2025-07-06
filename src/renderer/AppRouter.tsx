@@ -6,6 +6,7 @@ import DownloadsPage from "./pages/DownloadsPage";
 import SettingsPage from "./pages/SettingsPage";
 import ReaderPage from "./pages/ReaderPage";
 import LibraryPage from "./pages/LibraryPage";
+import TrackingPage from "./pages/TrackingPage";
 
 const AppRouter: React.FC = () => {
   return (
@@ -18,6 +19,8 @@ const AppRouter: React.FC = () => {
           <Route path="library" element={<LibraryPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="reader/:chapterId" element={<ReaderPage />} />
+          <Route path="reader/local/:mangaId/:chapterId" element={<ReaderPage />} />
+          <Route path="tracking" element={<TrackingPage />} />
         </Route>
       </Routes>
     </HashRouter>
