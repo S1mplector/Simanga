@@ -74,7 +74,7 @@ npm run dist
 
 The distributable files will be located in the `release/` directory.
 
-## 🛠️ Technology Stack
+## 🛠️ Tech Stack
 
 - [Electron](https://www.electronjs.org/) - Desktop application framework
 - [React](https://reactjs.org/) - Frontend library
@@ -110,7 +110,7 @@ The project is organized as follows:
 
 ## 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/your-username/simanga/issues).
+Contributions, issues, and feature requests are welcome! Feel free to check the issues page.
 
 ## 📜 License
 
