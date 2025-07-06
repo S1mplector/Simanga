@@ -8,8 +8,15 @@ import {
 } from "../services/adapterUtils";
 
 /**
- * Simple nHentai adapter for VPN users
- * Based on ASMHentai's proven approach
+ * @class NHentaiVPNAdapter
+ * @implements {Adapter}
+ *
+ * @description
+ * This adapter provides an interface for scraping manga from nHentai.net.
+ * It is designed to be resilient to network issues and employs several strategies
+ * - A circuit breaker is implemented to prevent spamming the site if it's down or blocking requests.
+ * - It includes a simple in-memory cache for gallery data to speed up repeated requests for the same manga.
+ * - Does not require a VPN/proxy but is named to distinguish from potential future implementations.
  */
 class NHentaiVPNAdapter implements Adapter {
   id = "nhentai-vpn";
@@ -22,12 +29,20 @@ class NHentaiVPNAdapter implements Adapter {
     authentication: 'none',
   };
   
+  /** A circuit breaker to prevent repeated failed requests to the source. */
   private circuitBreaker = new CircuitBreaker(5, 60000);
 
-  /** Simple in-memory cache for gallery JSON.  Clears itself after TTL. */
+  /** Simple in-memory cache for gallery JSON. Clears itself after TTL. */
   private galleryCache = new Map<string, { data: any; ts: number }>();
   private static readonly GALLERY_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
+  /**
+   * Fetches HTML content from a given URL with rate limiting and a circuit breaker.
+   * @param url The URL to fetch.
+   * @param signal An AbortSignal to cancel the request.
+   * @returns A promise that resolves to the HTML content as a string.
+   * @throws {NetworkError} If the fetch fails or the circuit breaker is open.
+   */
   private async fetchHtml(url: string, signal?: AbortSignal): Promise<string> {
     return this.circuitBreaker.execute(async () => {
       const headers = { 
@@ -46,6 +61,12 @@ class NHentaiVPNAdapter implements Adapter {
     });
   }
 
+  /**
+   * Searches for manga or gets the latest uploads from the homepage.
+   * @param options Search options, including query and page number.
+   * @param signal An AbortSignal to cancel the request.
+   * @returns A promise that resolves to a list of manga metadata.
+   */
   async getMangaList(options?: SearchOptions, signal?: AbortSignal): Promise<{ results: MangaMeta[]; hasMore?: boolean }> {
     try {
       const term = (options?.query ?? "").trim();
@@ -134,6 +155,12 @@ class NHentaiVPNAdapter implements Adapter {
     }
   }
 
+  /**
+   * Retrieves detailed metadata for a specific manga.
+   * @param mangaId The ID of the manga (gallery ID).
+   * @param signal An AbortSignal to cancel the request.
+   * @returns A promise that resolves to the manga's detailed metadata.
+   */
   async getMangaDetails(mangaId: string, signal?: AbortSignal): Promise<MangaMeta> {
     try {
       const html = await this.fetchHtml(`https://nhentai.net/g/${mangaId}/`, signal);
@@ -189,6 +216,12 @@ class NHentaiVPNAdapter implements Adapter {
     }
   }
 
+  /**
+   * Retrieves the list of chapters for a manga. For nHentai, each gallery is a single chapter.
+   * @param mangaId The ID of the manga (gallery ID).
+   * @param signal An AbortSignal to cancel the request.
+   * @returns A promise that resolves to an array containing a single chapter.
+   */
   async getChapterList(mangaId: string, signal?: AbortSignal): Promise<ChapterMeta[]> {
     try {
       const galleryData = await this.getGalleryData(mangaId, signal);
@@ -209,6 +242,14 @@ class NHentaiVPNAdapter implements Adapter {
     }
   }
 
+  /**
+   * Fetches and caches the core gallery JSON data from the manga's page.
+   * This data contains the media ID and page information necessary for fetching images.
+   * @param galleryId The ID of the gallery.
+   * @param signal An AbortSignal to cancel the request.
+   * @returns A promise that resolves to the parsed gallery JSON data.
+   * @throws {ParseError} If the gallery JSON cannot be found or parsed.
+   */
   private async getGalleryData(galleryId: string, signal?: AbortSignal): Promise<any> {
     const cached = this.galleryCache.get(galleryId);
     const now = Date.now();
@@ -249,6 +290,12 @@ class NHentaiVPNAdapter implements Adapter {
     return data;
   }
 
+  /**
+   * Retrieves the list of pages for a given chapter (gallery).
+   * @param chapterId The ID of the chapter (which is the gallery ID).
+   * @param signal An AbortSignal to cancel the request.
+   * @returns A promise that resolves to an array of page metadata.
+   */
   async getPageList(chapterId: string, signal?: AbortSignal): Promise<PageMeta[]> {
     try {
       const galleryData = await this.getGalleryData(chapterId, signal);
@@ -286,6 +333,14 @@ class NHentaiVPNAdapter implements Adapter {
     }
   }
 
+  /**
+   * Extracts the total page count from the gallery's HTML.
+   * It tries to parse the embedded gallery JSON first, then falls back to regex patterns
+   * and finally counts thumbnail images as a last resort.
+   * @param html The HTML content of the gallery page.
+   * @returns The number of pages, or 0 if not found.
+   * @deprecated This method is less reliable than getGalleryData and should be used as a fallback only.
+   */
   private extractPageCount(html: string): number {
     // Try to extract from the gallery JSON first
     const galleryJsonMatch = html.match(/window\._gallery\s*=\s*JSON\.parse\("(.+?)"\);/);
@@ -334,6 +389,11 @@ class NHentaiVPNAdapter implements Adapter {
     return 0;
   }
 
+  /**
+   * Decodes HTML entities in a string.
+   * @param str The string to decode.
+   * @returns The decoded string.
+   */
   private decodeEntities(str: string): string {
     return str
       .replace(/&amp;/g, "&")
@@ -349,4 +409,4 @@ class NHentaiVPNAdapter implements Adapter {
   }
 }
 
-export default new NHentaiVPNAdapter(); 
+export default new NHentaiVPNAdapter();

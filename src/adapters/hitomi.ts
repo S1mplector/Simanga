@@ -15,8 +15,8 @@ import {
 /**
  * Adapter for https://hitomi.la
  *
- * Note: Hitomi loads content dynamically via JavaScript, making direct HTML scraping ineffective.
- * This adapter uses alternative approaches to access gallery data.
+ * Motherfucking Hitomi loads content dynamically via JavaScript, making direct HTML scraping ineffective.
+ * This adapter uses alternative approaches to access gallery data. Doesn't work anyway.
  */
 class HitomiAdapter implements Adapter {
   id = "hitomi";
@@ -365,3 +365,4 @@ class HitomiAdapter implements Adapter {
 }
 
 export default new HitomiAdapter();
+// Yeah, sorry bud, just doesn't work.

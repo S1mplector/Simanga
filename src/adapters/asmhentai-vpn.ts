@@ -17,10 +17,11 @@ import {
  * Adapter for https://asmhentai.com
  *
  * The site does not expose a public JSON API but its HTML is fairly easy to
- * scrape and – most importantly – the image URLs follow a predictable schema
+ * scrape and most importantly the image URLs follow a predictable schema
  * (https://images.asmhentai.com/<dir>/<galleryId>/<page>.<ext>).  Every gallery
  * lives in a single chapter, so we mirror the pattern used in the nHentai
  * adapter and emit a single "Full Book" chapter.
+ * Woohoo! More hentai adapters!
  */
 class ASMHentaiAdapter implements Adapter {
   id = "asmhentai-vpn";

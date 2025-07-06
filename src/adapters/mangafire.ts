@@ -14,19 +14,18 @@ import {
 import * as puppeteer from "puppeteer";
 
 /**
- * Very-lightweight adapter for https://mangafire.to
+ * @file MangaFire Adapter
+ * @author S1mplector
+ * 
+ * Very lightweight adapter for https://mangafire.to
  *
- * MangaFire does not expose a public API.  We therefore scrape the HTML that
+ * MangaFire does not fucking expose a public API.  We therefore scrape the HTML that
  * NextJS sends to browsers.  All of the information we need lives either in
  * the rendered markup (search results & reader images) or in the large
  * `__NEXT_DATA__` JSON blob.  To avoid depending on brittle internal property
- * names we prefer simple RegExp extraction over deep-parsing that blob.
- *
- * Limitations:
- *   • Search only – no default catalogue when the user hasn't typed anything.
- *   • Requires a normal desktop UA and obeys a 1 rps limiter; otherwise CF will
- *     occasionally respond with 403/429.
- *   • Uses Puppeteer for dynamic content loading
+ * names we prefer simple RegExp extraction over deep parsing that blob.
+ * Right now, we're able to extract the manga list and chapter list, but not
+ * the page content. I dont know what to do, so help me out, Sotiris.
  */
 class MangaFireAdapter implements Adapter {
   id = "mangafire";

@@ -1,3 +1,13 @@
+/**
+ * @file MangaDex Adapter
+ * @author S1mplector
+ *
+ * This adapter is responsible for interfacing with the MangaDex API (api.mangadex.org).
+ * It handles fetching manga, chapters, and page data while respecting MangaDex's
+ * rate limits and API conventions. Rate limits are a bitch, so we implement
+ * a dedicated MangaDexRateLimiter class to manage our request pacing.
+ *
+ */
 import type { Adapter, MangaMeta, ChapterMeta, PageMeta, SearchOptions, AdapterCapabilities } from "./Adapter";
 import settingsStore from "../services/settings";
 import { acquire as rlAcquire, noteRateLimit, noteSuccess } from "../services/netLimiter";
@@ -12,6 +22,7 @@ import {
   ParseError,
   AdapterError
 } from "../services/adapterUtils";
+
 
 const API_BASE = "https://api.mangadex.org";
 
@@ -491,4 +502,4 @@ class MangaDexAdapter implements Adapter {
   }
 }
 
-export default new MangaDexAdapter(); 
+export default new MangaDexAdapter();
