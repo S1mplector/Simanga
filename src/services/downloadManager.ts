@@ -32,7 +32,7 @@ class DownloadManager extends EventEmitter {
     this.queue = new PQueue({ concurrency: settings.get("concurrency") });
   }
 
-  enqueue(job: Omit<DownloadJob, "progress" | "status">) {
+  enqueue(job: Omit<DownloadJob, "progress" | "status" | "downloadedCount" | "totalPages">) {
     // Prevent duplicate enqueues for the same chapter while it is already queued or running.
     const existing = this.jobs.get(job.id);
     if (existing && (existing.status === "queued" || existing.status === "running")) {
