@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowDownTrayIcon, FolderOpenIcon, TrashIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
+import {
+  ArrowDownTrayIcon,
+  FolderOpenIcon,
+  TrashIcon,
+  ArrowPathIcon,
+} from "@heroicons/react/24/outline";
 import MangaCard from "../components/MangaCard";
+import ConfirmationModal from "../components/ConfirmationModal";
 import ChapterList from "../components/ChapterList";
 import type { DownloadedManga, DownloadedChapter } from "../../services/downloadedManga";
 import type { DownloadJob } from "../../services/downloadManager";
@@ -46,6 +52,11 @@ const DownloadsPage: React.FC = () => {
   const [activeJobs, setActiveJobs] = useState<DownloadJob[]>([]);
   const [selectedManga, setSelectedManga] = useState<DownloadedManga | null>(null);
   const [isRescanning, setIsRescanning] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [chapterToDelete, setChapterToDelete] = useState<{
+    mangaId: string;
+    chapterId: string;
+  } | null>(null);
   const navigate = useNavigate();
   const [queuedOrder, setQueuedOrder] = useState<string[]>([]);
   const [diskUsage, setDiskUsage] = useState<number | null>(null);
@@ -120,20 +131,30 @@ const DownloadsPage: React.FC = () => {
   };
 
   const handleDeleteChapter = async (mangaId: string, chapterId: string) => {
-    if (!confirm("Delete this downloaded chapter?")) return;
-    
-    await (window as any).downloadedManga.removeChapter(mangaId, chapterId);
-    loadDownloadedManga();
-    
-    // Update selected manga if it's the one being modified
-    if (selectedManga?.id === mangaId) {
-      const updated = downloadedManga.find((m) => m.id === mangaId);
-      if (updated && updated.chapters.length > 0) {
-        setSelectedManga(updated);
-      } else {
-        setSelectedManga(null);
+    setChapterToDelete({ mangaId, chapterId });
+  };
+
+  const confirmDeleteChapter = async (confirmed: boolean) => {
+    if (confirmed && chapterToDelete) {
+      await (window as any).downloadedManga.removeChapter(
+        chapterToDelete.mangaId,
+        chapterToDelete.chapterId
+      );
+      loadDownloadedManga();
+
+      // Update selected manga if it's the one being modified
+      if (selectedManga?.id === chapterToDelete.mangaId) {
+        const updated = downloadedManga.find(
+          (m) => m.id === chapterToDelete.mangaId
+        );
+        if (updated && updated.chapters.length > 0) {
+          setSelectedManga(updated);
+        } else {
+          setSelectedManga(null);
+        }
       }
     }
+    setChapterToDelete(null);
   };
 
   const handleViewChapter = (mangaId: string, chapterId: string) => {
@@ -324,7 +345,10 @@ const DownloadsPage: React.FC = () => {
                       Read
                     </button>
                     <button
-                      onClick={() => handleDeleteChapter(selectedManga.id, chapter.id)}
+                      onClick={() => {
+                        setIsDeleteConfirmOpen(true);
+                        setChapterToDelete({ mangaId: selectedManga.id, chapterId: chapter.id });
+                      }}
                       className="p-1 text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Delete"
                     >
@@ -337,6 +361,15 @@ const DownloadsPage: React.FC = () => {
           </div>
         )}
       </div>
+      <ConfirmationModal
+        isOpen={!!chapterToDelete}
+        onClose={() => setChapterToDelete(null)}
+        onConfirm={confirmDeleteChapter}
+        title="Delete Downloaded Chapter?"
+        message="Are you sure you want to delete this chapter? This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+      />
     </div>
   );
 };
