@@ -32,6 +32,15 @@ function DraggableJob({ job, index, onDragHandle, children, disabled }: any) {
   );
 }
 
+//format bytes into human readable string
+const formatBytes = (bytes: number): string => {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB", "TB", "PB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
+};
+
 const DownloadsPage: React.FC = () => {
   const [downloadedManga, setDownloadedManga] = useState<DownloadedManga[]>([]);
   const [activeJobs, setActiveJobs] = useState<DownloadJob[]>([]);
@@ -39,6 +48,7 @@ const DownloadsPage: React.FC = () => {
   const [isRescanning, setIsRescanning] = useState(false);
   const navigate = useNavigate();
   const [queuedOrder, setQueuedOrder] = useState<string[]>([]);
+  const [diskUsage, setDiskUsage] = useState<number | null>(null);
 
   useEffect(() => {
     // On initial mount, run a rescan to sync with disk
@@ -86,9 +96,27 @@ const DownloadsPage: React.FC = () => {
     };
   }, []);
 
+  //load disk usage after the initial rescan completes
+  useEffect(() => {
+    if (!isRescanning) {
+      loadDiskUsage();
+    }
+    //eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRescanning]);
+
+  const loadDiskUsage = async () => {
+    try {
+      const bytes = await (window as any).downloadedManga.getDiskUsage();
+      setDiskUsage(bytes);
+    } catch (err) {
+      console.error("Failed to load disk usage:", err);
+    }
+  };
+
   const loadDownloadedManga = async () => {
     const manga = await (window as any).downloadedManga.getAll();
     setDownloadedManga(manga);
+    loadDiskUsage();
   };
 
   const handleDeleteChapter = async (mangaId: string, chapterId: string) => {
@@ -123,6 +151,7 @@ const DownloadsPage: React.FC = () => {
     setDownloadedManga(list);
     setSelectedManga(null);
     setIsRescanning(false);
+    loadDiskUsage();
   };
 
   // Drag-and-drop handlers for queued jobs
@@ -232,7 +261,14 @@ const DownloadsPage: React.FC = () => {
       {/* Downloaded Manga */}
       <div className="flex gap-6">
         <div className="flex-1">
-          <h3 className="text-lg font-medium mb-3">Downloaded Manga</h3>
+          <div className="flex items-center gap-2 mb-3">
+            <h3 className="text-lg font-medium">Downloaded Manga</h3>
+            {diskUsage !== null && (
+              <span className="text-sm text-white" title="Total disk space used by downloads">
+                {formatBytes(diskUsage)}
+              </span>
+            )}
+          </div>
           
           {downloadedManga.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
@@ -241,7 +277,7 @@ const DownloadsPage: React.FC = () => {
               <p className="text-sm mt-1">Download manga from the browse page</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] justify-items-center">
               {downloadedManga.map((manga) => (
                 <div 
                   key={manga.id} 

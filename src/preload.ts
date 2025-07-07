@@ -108,6 +108,7 @@ contextBridge.exposeInMainWorld("downloadedManga", {
     ipcRenderer.invoke("downloadedManga:removeChapter", mangaId, chapterId),
   getPages: (mangaId: string, chapterId: string) => 
     ipcRenderer.invoke("downloadedManga:getPages", mangaId, chapterId),
+  getDiskUsage: () => ipcRenderer.invoke("downloadedManga:getDiskUsage"),
 });
 
 contextBridge.exposeInMainWorld("bookmarks", {
@@ -195,6 +196,7 @@ declare global {
       rescan: () => Promise<any[]>;
       removeChapter: (mangaId: string, chapterId: string) => Promise<void>;
       getPages: (mangaId: string, chapterId: string) => Promise<string[]>;
+      getDiskUsage: () => Promise<number>;
     };
     bookmarks: {
       get: (sourceId: string, mangaId: string) => Promise<any>;

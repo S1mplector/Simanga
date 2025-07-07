@@ -182,6 +182,40 @@ class DownloadedMangaService {
 
     return downloadedManga;
   }
+
+  async getDiskUsage(): Promise<number> {
+    //return total bytes used inside the configured download directory
+    const downloadDir = settings.get("downloadDir");
+    try {
+      return await this.calculateDirectorySize(downloadDir);
+    } catch (err) {
+      console.error("Failed to calculate download directory size:", err);
+      return 0;
+    }
+  }
+
+  private async calculateDirectorySize(dir: string): Promise<number> {
+    let total = 0;
+    try {
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          total += await this.calculateDirectorySize(fullPath);
+        } else if (entry.isFile()) {
+          try {
+            const stat = await fs.stat(fullPath);
+            total += stat.size;
+          } catch {
+            //Ignore permission errors etc.
+          }
+        }
+      }
+    } catch {
+      //If dir aint there treat as zero bytes
+    }
+    return total;
+  }
 }
 
 export const downloadedMangaService = new DownloadedMangaService(); 
