@@ -1,5 +1,3 @@
-# SiManga
-
 <div align="center">
   <img src="src/assets/icons/simanga.ico" alt="SiManga Logo" width="128"/>
   <h1>SiManga</h1>
