@@ -1,4 +1,4 @@
-<div align="center">
+<div align="left">
   <img src="src/assets/icons/simanga.ico" alt="SiManga Logo" width="128"/>
   <h1>SiManga</h1>
   <p>
