@@ -5,7 +5,7 @@
     <strong>A modern, feature-rich desktop manga reader for Windows, macOS, and Linux.</strong>
   </p>
   <p>
-    Built with Electron and React, inspired by HakuNeko and Tachiyomi.
+    Built with Electron and React.
   </p>
 </div>
 
