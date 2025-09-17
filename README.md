@@ -13,7 +13,7 @@
 
 SiManga allows you to browse, read, and download manga from various online sources in a clean, customizable, and user-friendly interface.
 
-## ✨ Features
+## Features
 
 - **Multiple Sources**: Access manga from a variety of online sources.
 - **Customizable Reader**:
@@ -29,7 +29,7 @@ SiManga allows you to browse, read, and download manga from various online sourc
 - **Proxy Support**: Built-in support for proxies, including presets for Tor.
 - **And much more!**
 
-## 🚀 Getting Started
+## Getting Started
 
 ### For Users
 
@@ -58,7 +58,7 @@ npm install
 npm run electron:dev
 ```
 
-## 📦 Building Distributables
+## Building Distributables
 
 To create a packaged application for your OS:
 
@@ -72,7 +72,7 @@ npm run dist
 
 The distributable files will be located in the `release/` directory.
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - [Electron](https://www.electronjs.org/) - Desktop application framework
 - [React](https://reactjs.org/) - Frontend library
@@ -82,7 +82,7 @@ The distributable files will be located in the `release/` directory.
 - [Zustand](https://github.com/pmndrs/zustand) - State management
 - [Electron Builder](https://www.electron.build/) - Packaging and distribution
 
-## 📂 Project Structure
+## Project Structure
 
 The project is organized as follows:
 
@@ -106,10 +106,10 @@ The project is organized as follows:
 └── vite.config.ts        # Configuration for Vite
 ```
 
-## 🤝 Contributing
+## Contributing
 
 Contributions, issues, and feature requests are welcome! Feel free to check the issues page.
 
-## 📜 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE.md) file for details.
