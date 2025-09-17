@@ -343,7 +343,3 @@ ipcMain.handle(
     downloadManager.moveJob(jobId, newIndex);
   }
 );
-
-ipcMain.handle("downloadedManga:getDiskUsage", async () => {
-  return downloadedMangaService.getDiskUsage();
-});

@@ -11,7 +11,9 @@
     "start": "electron .",
     "electron:dev": "concurrently -k \"vite\" \"tsc -p tsconfig.main.json -w\" \"wait-on dist/main.js && electron .\"",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "test:adapters": "node -r ts-node/register src/adapters/adapters-tests/test-all.ts",
+    "test:adapters:mature": "INCLUDE_MATURE=1 node -r ts-node/register src/adapters/adapters-tests/test-all.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

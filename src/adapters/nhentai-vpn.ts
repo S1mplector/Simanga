@@ -6,6 +6,7 @@ import {
   ParseError,
   AdapterError
 } from "../services/adapterUtils";
+import puppeteer from "puppeteer";
 
 /**
  * @class NHentaiVPNAdapter
@@ -26,15 +27,18 @@ class NHentaiVPNAdapter implements Adapter {
     search: true,
     searchByTag: false,
     multiLanguage: false,
-    authentication: 'none',
+    authentication: 'cookie',
   };
   
   /** A circuit breaker to prevent repeated failed requests to the source. */
-  private circuitBreaker = new CircuitBreaker(5, 60000);
+  private circuitBreaker = new CircuitBreaker(3, 120000); // More conservative: 3 failures, 2min cooldown
 
   /** Simple in-memory cache for gallery JSON. Clears itself after TTL. */
   private galleryCache = new Map<string, { data: any; ts: number }>();
   private static readonly GALLERY_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+  /** Optional cookie header for authenticated/session-based access */
+  private cookieHeader?: string;
 
   /**
    * Fetches HTML content from a given URL with rate limiting and a circuit breaker.
@@ -45,20 +49,77 @@ class NHentaiVPNAdapter implements Adapter {
    */
   private async fetchHtml(url: string, signal?: AbortSignal): Promise<string> {
     return this.circuitBreaker.execute(async () => {
-      const headers = { 
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      // Use more comprehensive headers to appear like a real browser
+      const headers: Record<string, string> = { 
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
         "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"macOS"',
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
+        "Referer": "https://nhentai.net/",
+        "DNT": "1"
       };
+      if (this.cookieHeader) headers["Cookie"] = this.cookieHeader;
       
-      const response = await fetchWithRateLimit(
-        url,
-        { headers, signal, timeout: 15000 },
-        "nHentai"
-      );
+      // Add random delay to appear more human-like (500ms to 2s)
+      const delay = Math.random() * 1500 + 500;
+      await new Promise(resolve => setTimeout(resolve, delay));
       
-      return await response.text();
+      try {
+        const response = await fetchWithRateLimit(
+          url,
+          { headers, signal, timeout: 20000 },
+          "nHentai"
+        );
+        return await response.text();
+      } catch (err: any) {
+        // If forbidden, try puppeteer fallback to establish a session and retry once
+        if (err instanceof NetworkError && err.statusCode === 403) {
+          console.warn("nHentai: 403 detected, attempting Puppeteer fallback to establish session");
+          const html = await this.puppeteerFetchHtml(url);
+          if (html) return html;
+        }
+        throw err;
+      }
     });
+  }
+
+  private async puppeteerFetchHtml(url: string): Promise<string | undefined> {
+    let browser;
+    try {
+      browser = await puppeteer.launch({ headless: true });
+      const page = await browser.newPage();
+      await page.setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+      await page.setExtraHTTPHeaders({
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "Accept-Language": "en-US,en;q=0.9",
+      });
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+      // Give any JS-based checks time
+      await new Promise((r) => setTimeout(r, 1500));
+      const content = await page.content();
+      // Persist cookies as header for future fetches
+      const cookies = await page.cookies();
+      if (cookies && cookies.length) {
+        const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join("; ");
+        this.cookieHeader = cookieHeader;
+      }
+      return content;
+    } catch (e) {
+      console.error("nHentai Puppeteer fallback failed:", e);
+      return undefined;
+    } finally {
+      if (browser) await browser.close().catch(() => {});
+    }
   }
 
   /**
@@ -406,6 +467,49 @@ class NHentaiVPNAdapter implements Adapter {
       .replace(/&#x5C;/g, "\\")
       .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code)))
       .replace(/&#x([0-9a-fA-F]+);/g, (_, code) => String.fromCharCode(parseInt(code, 16)));
+  }
+
+  // Authentication and connectivity helpers
+  async authenticate(credentials: { cookie: string }): Promise<void> {
+    const cookie = (credentials?.cookie || "").trim();
+    if (!cookie) {
+      throw new AdapterError("Cookie is required for authentication", "AUTH_ERROR", false);
+    }
+    this.cookieHeader = cookie;
+  }
+
+  async isAuthenticated(): Promise<boolean> {
+    return Boolean(this.cookieHeader);
+  }
+
+  async testConnectivity(): Promise<{ success: boolean; message: string; suggestions: string[] }>{
+    try {
+      const html = await this.fetchHtml("https://nhentai.net/", undefined);
+      const blocked = /forbidden|captcha|cloudflare|attention required/i.test(html);
+      if (blocked) {
+        return {
+          success: false,
+          message: "Access appears blocked or gated (anti-bot)",
+          suggestions: [
+            "Provide a valid session cookie via authenticate({ cookie })",
+            "Wait and retry due to rate limiting",
+            "Use Puppeteer fallback by triggering a request (handled automatically on 403)",
+          ],
+        };
+      }
+      return { success: true, message: "Connectivity OK", suggestions: [] };
+    } catch (e: any) {
+      const msg = e?.message || String(e);
+      return {
+        success: false,
+        message: `Connectivity check failed: ${msg}`,
+        suggestions: [
+          "Try again later (possible rate-limit)",
+          "Provide a session cookie",
+          "Ensure network reachability",
+        ],
+      };
+    }
   }
 }
 
