@@ -12,6 +12,7 @@ import * as mangaCache from "./services/mangaCache";
 import { sourceHealthService } from "./services/sourceHealth";
 import { downloadedMangaService } from "./services/downloadedManga";
 import { bookmarkService } from "./services/bookmark";
+import logger from "./services/logger";
 
 // TEMP: disable TLS certificate validation so self-signed proxies work during testing.
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -73,6 +74,20 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+  // Initialize NHentai cookie-based session if available in settings
+  try {
+    const nhCookie = settingsStore.get("nhentaiCookie");
+    if (nhCookie) {
+      const nhAdapter = adapters.find((a) => a.id === "nhentai-vpn");
+      if (nhAdapter && typeof (nhAdapter as any).authenticate === "function") {
+        (nhAdapter as any).authenticate({ cookie: nhCookie }).catch((e: any) => {
+          logger.warn({ err: e }, "Failed to authenticate nhentai-vpn with stored cookie");
+        });
+      }
+    }
+  } catch (e) {
+    logger.warn({ err: e }, "Error during NHentai cookie initialization");
+  }
   
   // Start source health monitoring
   sourceHealthService.startMonitoring(300000); // Check every 5 minutes
@@ -96,9 +111,9 @@ app.on("before-quit", async () => {
   if (mangaFireAdapter && typeof (mangaFireAdapter as any).cleanup === 'function') {
     try {
       await (mangaFireAdapter as any).cleanup();
-      console.log("MangaFire browser cleaned up");
+      logger.info("MangaFire browser cleaned up");
     } catch (err) {
-      console.error("Error cleaning up MangaFire browser:", err);
+      logger.error({ err }, "Error cleaning up MangaFire browser");
     }
   }
 });
@@ -152,7 +167,7 @@ ipcMain.handle(
       mangaCache.set(sourceId, cacheKey, list);
       return list;
     } catch (err) {
-      console.error("fetchMangaList error", err);
+      logger.error({ err, sourceId, search, tags }, "fetchMangaList error");
       return [];
     }
   }
@@ -166,7 +181,7 @@ ipcMain.handle(
     try {
       return await adapter.getChapterList(mangaId);
     } catch (err) {
-      console.error("fetchChapterList error", err);
+      logger.error({ err, sourceId, mangaId }, "fetchChapterList error");
       return [];
     }
   }
@@ -180,7 +195,7 @@ ipcMain.handle(
     try {
       return await adapter.getPageList(chapterId);
     } catch (err) {
-      console.error("fetchPages error", err);
+      logger.error({ err, sourceId, chapterId }, "fetchPages error");
       return [];
     }
   }
@@ -243,7 +258,7 @@ ipcMain.handle("thumb:prefetchBatch", async (_e, items: Array<{ sourceId: string
       
       return pages[0].url;
     } catch (err) {
-      console.error(`Failed to fetch thumbnail for ${item.sourceId}/${item.mangaId}:`, err);
+      logger.error({ err, sourceId: item.sourceId, mangaId: item.mangaId }, "Failed to fetch thumbnail");
       return null;
     }
   });
@@ -265,6 +280,19 @@ ipcMain.handle("settings:setTorEnabled", (_e, enabled: boolean) => {
 ipcMain.handle("settings:getNHentaiProxyEnabled", () => settingsStore.get("nhentaiProxyEnabled"));
 ipcMain.handle("settings:setNHentaiProxyEnabled", (_e, enabled: boolean) => {
   settingsStore.set("nhentaiProxyEnabled", enabled);
+});
+// NHentai session cookie handlers
+ipcMain.handle("settings:getNHentaiCookie", () => settingsStore.get("nhentaiCookie"));
+ipcMain.handle("settings:setNHentaiCookie", async (_e, cookie: string) => {
+  settingsStore.set("nhentaiCookie", cookie || "");
+  const nhAdapter = adapters.find((a) => a.id === "nhentai-vpn");
+  if (nhAdapter && typeof (nhAdapter as any).authenticate === "function") {
+    try {
+      await (nhAdapter as any).authenticate({ cookie });
+    } catch (err) {
+      logger.error({ err, cookie: cookie ? "[REDACTED]" : "empty" }, "Failed to apply NHentai cookie to adapter");
+    }
+  }
 });
 ipcMain.handle("settings:getASMHentaiProxyEnabled", () => settingsStore.get("asmhentaiProxyEnabled"));
 ipcMain.handle("settings:setASMHentaiProxyEnabled", (_e, enabled: boolean) => {

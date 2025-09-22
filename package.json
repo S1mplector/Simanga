@@ -13,7 +13,8 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "test:adapters": "node -r ts-node/register src/adapters/adapters-tests/test-all.ts",
-    "test:adapters:mature": "INCLUDE_MATURE=1 node -r ts-node/register src/adapters/adapters-tests/test-all.ts"
+    "test:adapters:mature": "INCLUDE_MATURE=1 node -r ts-node/register src/adapters/adapters-tests/test-all.ts",
+    "test:nhentai": "node -r ts-node/register src/adapters/adapters-tests/test-nhentai.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -27,6 +28,7 @@
     "idb-keyval": "^6.2.2",
     "node-fetch": "^2.7.0",
     "p-queue": "^6.6.2",
+    "pino": "^9.11.0",
     "puppeteer": "^24.11.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

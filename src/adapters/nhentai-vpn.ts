@@ -1,11 +1,12 @@
 import type { Adapter, MangaMeta, ChapterMeta, PageMeta, SearchOptions, AdapterCapabilities } from "./Adapter";
 import { 
   CircuitBreaker, 
-  fetchWithRateLimit,
   NetworkError,
   ParseError,
   AdapterError
 } from "../services/adapterUtils";
+import { httpGet } from "../services/httpClient";
+import logger from "../services/logger";
 import puppeteer from "puppeteer";
 
 /**
@@ -49,42 +50,24 @@ class NHentaiVPNAdapter implements Adapter {
    */
   private async fetchHtml(url: string, signal?: AbortSignal): Promise<string> {
     return this.circuitBreaker.execute(async () => {
-      // Use more comprehensive headers to appear like a real browser
-      const headers: Record<string, string> = { 
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Cache-Control": "no-cache",
-        "Pragma": "no-cache",
-        "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-        "Sec-Ch-Ua-Mobile": "?0",
-        "Sec-Ch-Ua-Platform": '"macOS"',
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "none",
-        "Sec-Fetch-User": "?1",
-        "Upgrade-Insecure-Requests": "1",
-        "Referer": "https://nhentai.net/",
-        "DNT": "1"
-      };
-      if (this.cookieHeader) headers["Cookie"] = this.cookieHeader;
-      
+      // Headers and cookie are managed centrally by httpClient
       // Add random delay to appear more human-like (500ms to 2s)
       const delay = Math.random() * 1500 + 500;
       await new Promise(resolve => setTimeout(resolve, delay));
       
       try {
-        const response = await fetchWithRateLimit(
-          url,
-          { headers, signal, timeout: 20000 },
-          "nHentai"
-        );
-        return await response.text();
+        const response = await httpGet(url, {
+          adapterName: "nHentai",
+          timeout: 20000,
+          cookieHeader: this.cookieHeader,
+          referer: "https://nhentai.net/",
+        });
+        const text = await response.text();
+        return text;
       } catch (err: any) {
         // If forbidden, try puppeteer fallback to establish a session and retry once
         if (err instanceof NetworkError && err.statusCode === 403) {
-          console.warn("nHentai: 403 detected, attempting Puppeteer fallback to establish session");
+          logger.warn({ url }, "nHentai: 403 detected, attempting Puppeteer fallback to establish session");
           const html = await this.puppeteerFetchHtml(url);
           if (html) return html;
         }
@@ -115,7 +98,7 @@ class NHentaiVPNAdapter implements Adapter {
       }
       return content;
     } catch (e) {
-      console.error("nHentai Puppeteer fallback failed:", e);
+      logger.error({ err: e, url }, "nHentai Puppeteer fallback failed");
       return undefined;
     } finally {
       if (browser) await browser.close().catch(() => {});
@@ -137,7 +120,7 @@ class NHentaiVPNAdapter implements Adapter {
         ? `https://nhentai.net/search/?q=${encodeURIComponent(term)}&page=${page}`
         : `https://nhentai.net/?page=${page}`;
       
-      console.log(`nHentai: Fetching ${url}`);
+      logger.info({ url }, "nHentai: Fetching URL");
       const html = await this.fetchHtml(url, signal);
 
       const results: MangaMeta[] = [];
@@ -193,13 +176,13 @@ class NHentaiVPNAdapter implements Adapter {
         });
       }
       
-      console.log(`nHentai: Found ${results.length} results`);
+      logger.info({ count: results.length }, "nHentai: Found results");
       if (results.length > 0) {
-        console.log('Sample results with covers:', results.slice(0, 3).map(r => ({ 
+        logger.debug({ samples: results.slice(0, 3).map(r => ({ 
           id: r.id, 
           title: r.title.substring(0, 40) + '...', 
           cover: r.coverUrl ? 'YES' : 'NO' 
-        })));
+        })) }, "nHentai: Sample results with covers");
       }
       
       // Check for next page
@@ -211,7 +194,7 @@ class NHentaiVPNAdapter implements Adapter {
       if (error instanceof AdapterError) {
         throw error;
       }
-      console.error("nHentai error:", error);
+      logger.error({ err: error }, "nHentai getMangaList error");
       throw new NetworkError("Failed to fetch gallery list");
     }
   }
@@ -272,7 +255,7 @@ class NHentaiVPNAdapter implements Adapter {
       if (error instanceof AdapterError) {
         throw error;
       }
-      console.error("nHentai error:", error);
+      logger.error({ err: error, mangaId }, "nHentai getMangaDetails error");
       throw new NetworkError(`Failed to fetch details for ${mangaId}`);
     }
   }
@@ -298,7 +281,7 @@ class NHentaiVPNAdapter implements Adapter {
       if (error instanceof AdapterError) {
         throw error;
       }
-      console.error("nHentai error:", error);
+      logger.error({ err: error, mangaId }, "nHentai getChapterList error");
       throw new NetworkError(`Failed to fetch chapters for ${mangaId}`);
     }
   }
@@ -363,7 +346,7 @@ class NHentaiVPNAdapter implements Adapter {
 
       const mediaId = galleryData.media_id;
       const images = galleryData.images.pages;
-      console.log(`nHentai: Gallery ${chapterId} has ${images.length} pages, media_id: ${mediaId}`);
+      logger.info({ chapterId, pageCount: images.length, mediaId }, "nHentai: Gallery page info");
 
       // Build page URLs using the image format data
       const pages: PageMeta[] = [];
@@ -389,7 +372,7 @@ class NHentaiVPNAdapter implements Adapter {
       if (error instanceof AdapterError) {
         throw error;
       }
-      console.error("nHentai error:", error);
+      logger.error({ err: error, chapterId }, "nHentai getPageList error");
       throw new NetworkError(`Failed to fetch pages for ${chapterId}`);
     }
   }
@@ -420,7 +403,7 @@ class NHentaiVPNAdapter implements Adapter {
           return galleryData.num_pages;
         }
       } catch (e) {
-        console.warn("Failed to parse gallery JSON for page count");
+        logger.warn("Failed to parse gallery JSON for page count");
       }
     }
     
