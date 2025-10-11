@@ -14,10 +14,12 @@ import { downloadedMangaService } from "./services/downloadedManga";
 import { bookmarkService } from "./services/bookmark";
 import logger from "./services/logger";
 
-// TEMP: disable TLS certificate validation so self-signed proxies work during testing.
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-
 const isDev = !app.isPackaged;
+
+// TEMP: disable TLS certificate validation in development so self-signed proxies work during testing.
+if (isDev) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+}
 
 // Disable GPU acceleration (helps on Wine/CrossOver environments)
 app.disableHardwareAcceleration();
@@ -54,7 +56,7 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
-      webSecurity: false,
+      webSecurity: !isDev,
     },
     icon: iconPath,
   });
@@ -330,6 +332,11 @@ ipcMain.handle("downloadedManga:removeChapter", async (_e, mangaId: string, chap
 
 ipcMain.handle("downloadedManga:getPages", async (_e, mangaId: string, chapterId: string) => {
   return downloadedMangaService.getDownloadedPages(mangaId, chapterId);
+});
+
+// Return total disk usage (in bytes) of the download directory
+ipcMain.handle("downloadedManga:getDiskUsage", async () => {
+  return downloadedMangaService.getDiskUsage();
 });
 
 // Trigger a re-scan of the download directory and return the refreshed list
