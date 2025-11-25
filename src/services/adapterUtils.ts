@@ -172,7 +172,7 @@ export async function fetchWithRateLimit(
   options: RequestInit & { timeout?: number } = {},
   adapterName: string
 ): Promise<Response> {
-  await rlAcquire();
+  await rlAcquire(adapterName);
 
   try {
     // Use provided timeout or default to 10 seconds for better UX
@@ -183,7 +183,7 @@ export async function fetchWithRateLimit(
     
     // Handle rate limits
     if (response.status === 429) {
-      noteRateLimit();
+      noteRateLimit(adapterName);
       const retryAfter = response.headers.get("retry-after");
       throw new RateLimitError(
         `${adapterName} rate limit exceeded`,
@@ -193,7 +193,7 @@ export async function fetchWithRateLimit(
     
     // Handle other errors
     if (response.status === 403) {
-      noteRateLimit();
+      noteRateLimit(adapterName);
       throw new NetworkError(`${adapterName} access forbidden (possible rate limit)`, 403);
     }
     
@@ -204,7 +204,7 @@ export async function fetchWithRateLimit(
       );
     }
     
-    noteSuccess();
+    noteSuccess(adapterName);
     return response;
   } catch (error: unknown) {
     if (error instanceof AdapterError) {

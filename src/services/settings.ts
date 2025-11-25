@@ -19,6 +19,8 @@ export interface Settings {
   disabledSources: string[];
   mangahookApiUrl?: string;
   nsfwEnabled: boolean;
+  nhentaiCookie?: string;
+  lastNhentaiPuppeteerAt?: number;
 }
 
 const store = new Store<Settings>({
@@ -40,6 +42,8 @@ const store = new Store<Settings>({
     disabledSources: [],
     mangahookApiUrl: undefined,
     nsfwEnabled: false,
+    nhentaiCookie: undefined,
+    lastNhentaiPuppeteerAt: 0,
   },
 });
 

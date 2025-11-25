@@ -3,11 +3,14 @@ import {
   CircuitBreaker, 
   NetworkError,
   ParseError,
-  AdapterError
+  AdapterError,
+  SimpleCache,
 } from "../services/adapterUtils";
 import { httpGet } from "../services/httpClient";
 import logger from "../services/logger";
 import puppeteer from "puppeteer";
+import settingsStore from "../services/settings";
+import { setRate } from "../services/netLimiter";
 
 /**
  * @class NHentaiVPNAdapter
@@ -38,8 +41,20 @@ class NHentaiVPNAdapter implements Adapter {
   private galleryCache = new Map<string, { data: any; ts: number }>();
   private static readonly GALLERY_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
+  private pageCache = new SimpleCache<string>(120000);
+  private inflight = new Map<string, Promise<string>>();
+  private static readonly PUPPETEER_COOLDOWN_MS = 10 * 60 * 1000;
+
   /** Optional cookie header for authenticated/session-based access */
   private cookieHeader?: string;
+
+  constructor() {
+    const saved = (settingsStore.get("nhentaiCookie") as string | undefined) || undefined;
+    if (saved) {
+      this.cookieHeader = saved;
+      setRate("nHentai", 3);
+    }
+  }
 
   /**
    * Fetches HTML content from a given URL with rate limiting and a circuit breaker.
@@ -49,31 +64,55 @@ class NHentaiVPNAdapter implements Adapter {
    * @throws {NetworkError} If the fetch fails or the circuit breaker is open.
    */
   private async fetchHtml(url: string, signal?: AbortSignal): Promise<string> {
-    return this.circuitBreaker.execute(async () => {
-      // Headers and cookie are managed centrally by httpClient
-      // Add random delay to appear more human-like (500ms to 2s)
-      const delay = Math.random() * 1500 + 500;
-      await new Promise(resolve => setTimeout(resolve, delay));
-      
-      try {
-        const response = await httpGet(url, {
-          adapterName: "nHentai",
-          timeout: 20000,
-          cookieHeader: this.cookieHeader,
-          referer: "https://nhentai.net/",
-        });
-        const text = await response.text();
-        return text;
-      } catch (err: any) {
-        // If forbidden, try puppeteer fallback to establish a session and retry once
-        if (err instanceof NetworkError && err.statusCode === 403) {
-          logger.warn({ url }, "nHentai: 403 detected, attempting Puppeteer fallback to establish session");
-          const html = await this.puppeteerFetchHtml(url);
-          if (html) return html;
+    const cached = this.pageCache.get(url);
+    if (cached) return cached;
+    const existing = this.inflight.get(url);
+    if (existing) return await existing;
+
+    const work = this.circuitBreaker
+      .execute(async () => {
+        if (!this.cookieHeader) {
+          const jitter = Math.floor(Math.random() * 150);
+          if (jitter > 0) await new Promise((r) => setTimeout(r, jitter));
         }
-        throw err;
-      }
-    });
+
+        try {
+          const response = await httpGet(url, {
+            adapterName: "nHentai",
+            timeout: 20000,
+            cookieHeader: this.cookieHeader,
+            referer: "https://nhentai.net/",
+          });
+          const text = await response.text();
+          return text;
+        } catch (err: any) {
+          // If forbidden, try puppeteer fallback to establish a session and retry once
+          if (err instanceof NetworkError && err.statusCode === 403) {
+            const lastAt = (settingsStore.get("lastNhentaiPuppeteerAt") as number | undefined) || 0;
+            const now = Date.now();
+            const withinCooldown = now - lastAt < NHentaiVPNAdapter.PUPPETEER_COOLDOWN_MS;
+            if (withinCooldown) {
+              logger.warn({ url }, "nHentai: 403 detected but Puppeteer fallback is in cooldown; skipping");
+              throw err;
+            }
+
+            logger.warn({ url }, "nHentai: 403 detected, attempting Puppeteer fallback to establish session");
+            const html = await this.puppeteerFetchHtml(url);
+            if (html) return html;
+          }
+          throw err;
+        }
+      })
+      .then((html) => {
+        this.pageCache.set(url, html);
+        return html;
+      })
+      .finally(() => {
+        this.inflight.delete(url);
+      });
+
+    this.inflight.set(url, work);
+    return await work;
   }
 
   private async puppeteerFetchHtml(url: string): Promise<string | undefined> {
@@ -95,12 +134,19 @@ class NHentaiVPNAdapter implements Adapter {
       if (cookies && cookies.length) {
         const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join("; ");
         this.cookieHeader = cookieHeader;
+        try {
+          settingsStore.set("nhentaiCookie", cookieHeader);
+          setRate("nHentai", 3);
+        } catch {}
       }
       return content;
     } catch (e) {
       logger.error({ err: e, url }, "nHentai Puppeteer fallback failed");
       return undefined;
     } finally {
+      try {
+        settingsStore.set("lastNhentaiPuppeteerAt", Date.now());
+      } catch {}
       if (browser) await browser.close().catch(() => {});
     }
   }
@@ -459,6 +505,10 @@ class NHentaiVPNAdapter implements Adapter {
       throw new AdapterError("Cookie is required for authentication", "AUTH_ERROR", false);
     }
     this.cookieHeader = cookie;
+    try {
+      settingsStore.set("nhentaiCookie", cookie);
+      setRate("nHentai", 3);
+    } catch {}
   }
 
   async isAuthenticated(): Promise<boolean> {

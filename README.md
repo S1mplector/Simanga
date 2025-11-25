@@ -11,6 +11,8 @@
 
 ---
 
+> Status: Development of SiManga has ended. This project is no longer in active development.
+
 SiManga allows you to browse, read, and download manga from various online sources in a clean, customizable, and user-friendly interface.
 
 ## Features
@@ -33,7 +35,7 @@ SiManga allows you to browse, read, and download manga from various online sourc
 
 ### For Users
 
-You can download the latest release for your operating system from https://github.com/your-S1mplector/simanga/releases.
+You can download the latest release for your operating system from https://github.com/S1mplector/Simanga/releases.
 
 ### For Developers
 
@@ -47,8 +49,8 @@ To get a local copy up and running, follow these simple steps.
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-username/simanga.git
-cd simanga
+git clone https://github.com/S1mplector/Simanga.git
+cd Simanga
 
 # 2. Install dependencies
 npm install
@@ -112,4 +114,4 @@ Contributions, issues, and feature requests are welcome! Feel free to check the 
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE.md) file for details.
+TBD. 
